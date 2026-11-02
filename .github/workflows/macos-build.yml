@@ -1,0 +1,44 @@
+name: macOS build
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build Swift app (Apple Silicon)
+    runs-on: macos-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Toolchain info
+        run: |
+          sw_vers
+          xcodebuild -version
+          swift --version
+
+      - name: Build (release)
+        run: swift build -c release
+
+      - name: Assemble and sign .app
+        env:
+          MACOS_P12_BASE64: ${{ secrets.MACOS_P12_BASE64 }}
+          MACOS_CERT_PASSWORD: ${{ secrets.MACOS_CERT_PASSWORD }}
+        run: bash Scripts/make-app.sh
+
+      - name: Package DMG
+        run: bash Scripts/make-dmg.sh
+
+      - name: Upload DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: CloudMacDemo-macos
+          path: dist/CloudMacDemo.dmg
+          if-no-files-found: error
